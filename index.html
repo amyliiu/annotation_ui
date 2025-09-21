@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scheming Evaluation Project (JavaScript)</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>📤 File Upload</h2>
+
+      <!-- s2.json -->
+      <label class="label">Upload s2.json</label>
+      <input id="dataUpload" type="file" accept="application/json" style="display:none;" />
+      <button class="btn btn-secondary" onclick="document.getElementById('dataUpload').click()">Choose File</button>
+
+      <!-- files.json -->
+      <label class="label">Upload files.json (optional)</label>
+      <input id="filesUpload" type="file" accept="application/json" style="display:none;" />
+      <button class="btn btn-secondary" onclick="document.getElementById('filesUpload').click()">Choose File</button>
+
+      <div class="hr"></div>
+      <h3>🏷️ Categories (items.json)</h3>
+      <div id="itemsLoadMsg" class="small muted">Trying to load <code>items.json</code>…</div>
+      
+      <!-- items.json -->
+      <label class="label">Or manually upload items.json</label>
+      <input id="itemsUpload" type="file" accept="application/json" style="display:none;" />
+      <button class="btn btn-secondary" onclick="document.getElementById('itemsUpload').click()">Choose File</button>
+
+
+      <h2>📂 Loaded Files</h2>
+      <div id="loadedFilesPanel" class="loaded-files"></div>
+
+      <div class="hr"></div>
+      <h2>📤 Export</h2>
+      <button id="exportBtn" class="btn btn-primary">📋 Export Annotations JSON</button>
+
+      <div class="hr"></div>
+      <h2>📜 Annotation History</h2>
+      <div id="historyPanel" class="history-panel"></div>
+
+    </aside>
+
+    <main class="content">
+      <h1>AI Agent Scheming Evaluation Project</h1>
+      <div id="alerts"></div>
+      <div id="mainArea"></div>
+    </main>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

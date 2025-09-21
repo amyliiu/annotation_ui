@@ -1,0 +1,365 @@
+:root {
+  --bg: #f9f9f9;
+  --panel: #ffffff;
+  --text: #000000;
+  --border: #dee2e6;
+  --accent: #2196f3;
+  --accent-2: #4caf50;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #262730;
+    --panel: #2e2e3e;
+    --text: #ffffff;
+    --border: #4a4a4a;
+  }
+}
+
+/* ---------- Layout ---------- */
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica Neue, Arial, sans-serif;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  height: 100vh;
+}
+
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  overflow: auto;
+}
+
+.content {
+  padding: 16px 24px;
+  overflow: auto;
+}
+
+/* ---------- Oversight Tags ---------- */
+.oversight-tag {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  display: inline-block;
+  margin: 5px 0;
+}
+
+.no-oversight-tag {
+  background-color: #fff3e0;
+  color: #f57c00;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  display: inline-block;
+  margin: 5px 0;
+}
+
+/* ---------- Prompts & Outputs ---------- */
+.prompt-section {
+  background-color: var(--panel);
+  border-left: 4px solid var(--accent);
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 4px;
+  color: var(--text);
+}
+
+.agent-output-section {
+  background-color: var(--panel);
+  border-left: 4px solid var(--accent-2);
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 4px;
+  color: var(--text);
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: auto;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.agent-output-section.qwen-output {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 420px !important;
+  overflow: auto !important;
+  border: 2px solid var(--accent-2) !important;
+  padding: 15px !important;
+  margin: 10px 0 !important;
+  background-color: var(--bg) !important;
+  display: block !important;
+  box-sizing: border-box !important;
+  white-space: pre-wrap;
+}
+
+/* ========== Pair comparison row layout ========== */
+.row.section {
+  display: flex;      
+  gap: 16px;          
+  margin-top: 16px;
+}
+
+.row.section > div {
+  flex: 1;            
+  min-width: 0;       
+}
+
+.output-header .annotation-btn {
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+/* ========== Annotation inline UI ========== */
+.highlight {
+  padding: 0 1px;
+  border-radius: 2px;
+  color: inherit;
+}
+
+.highlight-Intrinsic_Reason__Goal_Seeking___CoT { background-color: #0681f4; }
+.highlight-Intrinsic_Reason__Goal_Seeking___Action { background-color: #0bdc205a; }
+.highlight-Intrinsic_Reason__Goal_Seeking___Self_Report { background-color: #f78b08; }
+
+.highlight-A1_1__Disrupting_Workflows { background-color: #f7f306; }
+.highlight-A1_2__Inserting_Security_Vulnerabilities { background-color: #2ef506; }
+.highlight-A1_3__Self_Exfiltration { background-color: #b26be5; }
+.highlight-A1_4__Manipulating_Decisions { background-color: #e64747; }
+
+.highlight-A2_1__Conditional_Malign_Behavior { background-color: #06e3f3; }
+.highlight-A2_2__Sandbagging_Underperforming { background-color: #58b2e2; }
+
+.highlight-R0__Faithful_and_helpful_reasoning { background-color: #e17e7e; }
+.highlight-R1__Unfaithful_Covert_Reasoning { background-color: #32b917; }
+.highlight-R2__Motivated_Reasoning__but_Faithful_ { background-color: #ffb5a7; }
+
+/* ========== Annotation History Panel ========== */
+.history-panel {
+  margin-top: 8px;
+  max-height: 340px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.history-panel h4 {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.history-item {
+  margin-bottom: 8px;   
+  padding: 3px 2px;     
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  position: relative; 
+}
+
+.history-item .delete-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  color: #aaa;
+  padding: 0;
+}
+.history-item .delete-btn:hover {
+  color: red;
+}
+
+.history-panel .history-item .cat {
+  font-weight: bold;
+  color: var(--accent-2);
+}
+
+.history-item .time {
+  font-size: 10px;
+  color: gray;
+  margin-bottom: 1px;       
+  display: block;
+}
+
+/* ========== Oversight labels in history ========== */
+.label {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  margin-right: 6px;
+}
+
+.oversight.with_oversight {
+  background: #e0f7fa;  
+  color: #006064;        
+}
+
+.oversight.without_oversight {
+  background: #fce4ec;   
+  color: #880e4f;        
+}
+
+.label.category {
+  background: #ede7f6;   
+  color: #4527a0;       
+}
+
+.labels-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+  align-items: flex-start;
+}
+
+/* ========== Focused annotation (when a history item is selected) ========== */
+.focused-annotation {
+  outline: 2px solid red;      
+  outline-offset: 2px;        
+  background-color: rgba(255, 0, 0, 0.05); 
+  border-radius: 2px;
+}
+
+.label.subcat {
+  background: #c8e6c9;
+  color: #1b5e20;
+}
+
+
+.loaded-files {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--panel, #fafafa);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.loaded-files h3 {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+}
+.loaded-files ul {
+  margin: 6px 0 0 18px;
+  padding: 0;
+}
+.loaded-files li {
+  margin: 4px 0;
+}
+.loaded-files .ok { color: #10b981; }     
+.loaded-files .warn { color: #ef4444; }   
+.loaded-files .muted { color: #6b7280; }  
+
+
+.error {
+  color: red;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+
+/* ========== Buttons & Selects ========== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.02s ease;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.btn-secondary {
+  background: transparent;
+}
+
+.btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.select:hover {
+  border-color: var(--accent);
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.25);
+}
+
+/* ========== Tabs ========== */
+.tabs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}
+
+.tab {
+  appearance: none;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-bottom-color: var(--border);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.tab:hover {
+  border-color: var(--accent);
+}
+
+.tab.active {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
