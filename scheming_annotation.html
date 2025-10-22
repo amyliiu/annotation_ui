@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scheming Annotation Tool</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <h3>Scheming Annotation UI</h3>
+            
+            <div class="input-group">
+                <label for="folderInput">Select root folder containing example_{i}:</label>
+                <input type="file" id="folderInput" webkitdirectory directory multiple>
+            </div>
+
+            <div id="fileList" class="file-list" style="display: none;">
+                <h3>Files to annotate:</h3>
+                <div id="fileItems"></div>
+            </div>
+
+            <div class="export-section">
+                <h3>Save & Export</h3>
+                <button id="saveBtn" class="btn btn-primary">💾 Save Progress</button>
+                <button id="loadBtn" class="btn btn-primary">📂 Load Progress</button>
+                <button id="clearBtn" class="btn btn-danger">🗑️ Clear Progress</button>
+                <button id="exportBtn" class="btn btn-success" disabled>📥 Export JSON</button>
+            </div>
+
+            <div id="statusPanel">
+                <h3>Status</h3>
+                <div id="statusContent">
+                    <div class="alert alert-info">
+                        Please select a folder containing example_{i} folders with s2_{i}.json files.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div id="mainContent">
+                <h2>Welcome to Scheming Annotation Tool</h2>
+                <p>You are to annotate whether scheming has occurred in an AI agent interactions.</p>
+                <p> more text and descriptions here</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

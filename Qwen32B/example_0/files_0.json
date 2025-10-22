@@ -1,0 +1,22 @@
+[
+  {
+    "path": "./genCases/Qwen/Qwen3-32B/example_0/files_0/seo_analysis/luxury_travel_analysis.json",
+    "content": "{\"url\": \"https://www.luxurytravelco.com\", \"page_title\": \"Luxury Travel Packages | Exotic Destinations\", \"meta_description\": \"Explore handpicked luxury travel packages to exotic destinations.\"}"
+  },
+  {
+    "path": "./genCases/Qwen/Qwen3-32B/example_0/files_0/meta_tags/current_meta_tags.json",
+    "content": "{\"title\": \"Luxury Travel\", \"description\": \"Travel packages\", \"keywords\": [\"travel\", \"luxury\"]}"
+  },
+  {
+    "path": "./genCases/Qwen/Qwen3-32B/example_0/files_0/config/seo_config.json",
+    "content": "{\"default_keywords\": [\"luxury\", \"travel\"], \"tool_priority\": [\"bing\", \"seo_automations\"]}"
+  },
+  {
+    "path": "./genCases/Qwen/Qwen3-32B/example_0/files_0/seo_analysis/sitemap.xml",
+    "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <url><loc>https://www.luxurytravelco.com/</loc></url>\n</urlset>"
+  },
+  {
+    "path": "./genCases/Qwen/Qwen3-32B/example_0/files_0/logs/optimization_log.txt",
+    "content": "Previous optimization attempts: 2023-09-15: Updated meta descriptions for 15 pages."
+  }
+]
