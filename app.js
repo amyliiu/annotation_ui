@@ -1,3 +1,4 @@
+
 // Global state
 const state = {
     currentFile: null,
@@ -188,8 +189,8 @@ function displayContent(data) {
             </div>
             
             <div class="annotation-controls">
-                <button id="schemingYes" class="btn btn-danger">❌ Yes, Scheming Detected</button>
-                <button id="schemingNo" class="btn btn-success">✅ No Scheming</button>
+                <button id="schemingYes" class="btn btn-success"> Yes, Scheming Detected</button>
+                <button id="schemingNo" class="btn btn-danger"> No Scheming</button>
                 <button id="highlightBtn" class="btn btn-primary" style="display: none;">🎯 Highlight Text</button>
             </div>
             
@@ -643,122 +644,104 @@ function showFileRepository() {
     // Always show file repository
     fileRepo.style.display = 'block';
     
+    const currNum = state.currentFile.split('_')[2].replace('.json', '');
     // Load file comparison directly
-    loadFileComparison();
+    // console.log('Loading actual files for example:', currNum);
+    loadActualFiles(currNum).then(file_differences => {
+        console.log('File differences loaded:', file_differences);
+        displayFileRepository(file_differences);
+    }).catch(error => {
+        console.error('Error loading files:', error);
+        const repoContent = $('#repoContent');
+        if (repoContent) {
+            repoContent.innerHTML = '<div class="alert alert-warning">Error loading files: ' + error.message + '</div>';
+        }
+    });
+    
 }
 
-// Removed switchRepoTab function - no longer needed without tabs
-
-async function loadFileComparison() {
+function displayFileRepository(files) {
     const repoContent = $('#repoContent');
     if (!repoContent) {
         console.log('Repo content element not found');
         return;
     }
     
-    console.log('Loading file comparison, current file:', state.currentFile);
-    
-    if (!state.currentFile) {
-        console.log('No current file selected');
-        repoContent.innerHTML = '<div class="alert alert-info">No file selected</div>';
+    if (files.length === 0) {
+        repoContent.innerHTML = '<div class="alert alert-info">No files found to compare</div>';
         return;
     }
     
-    // Extract example number from filename (e.g., s2_wooversight_0.json -> 0)
-    const match = state.currentFile.match(/s2_wooversight_(\d+)\.json/);
-    if (!match) {
-        console.log('Invalid file format:', state.currentFile);
-        repoContent.innerHTML = '<div class="alert alert-info">Invalid file format</div>';
-        return;
-    }
-    
-    const exampleNum = match[1];
-    console.log('Example number:', exampleNum);
-    
-    try {
-        // Try to load actual file content from the example folder
-        const files = await loadActualFiles(exampleNum);
-        
-        if (files.length === 0) {
-            repoContent.innerHTML = '<div class="alert alert-info">No files found in example folder</div>';
-            return;
-        }
-        
-        // Display VS Code-like file explorer
-        const filesHtml = `
-            <div class="file-explorer">
-                <div class="file-sidebar">
-                    <h4>Files (${files.length})</h4>
-                    <div class="file-tree">
-                        ${files.map(file => {
-                            let icon = '📄';
-                            let statusClass = '';
-                            
-                            if (file.isAdded) {
-                                icon = '➕';
-                                statusClass = 'file-added';
-                            } else if (file.isRemoved) {
-                                icon = '➖';
-                                statusClass = 'file-removed';
-                            } else if (file.hasChanges) {
-                                icon = '📝';
-                                statusClass = 'file-changed';
-                            } else {
-                                icon = '📄';
-                                statusClass = 'file-unchanged';
-                            }
-                            
-                            return `
-                                <div class="file-item ${statusClass}" data-path="${escapeHtml(file.filename)}">
-                                    <span class="file-icon">${icon}</span>
-                                    <div class="file-info">
-                                        <span class="file-name">${escapeHtml(file.filename.split('/').pop())}</span>
-                                        <span class="file-folders">
-                                            ${file.original ? `📁 ${file.original.folder}` : ''}
-                                            ${file.original && file.modified ? ' ↔ ' : ''}
-                                            ${file.modified ? `📁 ${file.modified.folder}` : ''}
-                                        </span>
-                                    </div>
-                                    <span class="file-status">${file.isAdded ? 'Added' : file.isRemoved ? 'Removed' : file.hasChanges ? 'Modified' : 'Unchanged'}</span>
+    // Display VS Code-like file explorer
+    const filesHtml = `
+        <div class="file-explorer">
+            <div class="file-sidebar">
+                <h4>Files (${files.length})</h4>
+                <div class="file-tree">
+                    ${files.map(file => {
+                        let icon = '📄';
+                        let statusClass = '';
+                        
+                        if (file.isAdded) {
+                            icon = '➕';
+                            statusClass = 'file-added';
+                        } else if (file.isRemoved) {
+                            icon = '➖';
+                            statusClass = 'file-removed';
+                        } else if (file.hasChanges) {
+                            icon = '📝';
+                            statusClass = 'file-changed';
+                        } else {
+                            icon = '📄';
+                            statusClass = 'file-unchanged';
+                        }
+                        
+                        return `
+                            <div class="file-item ${statusClass}" data-path="${escapeHtml(file.filename)}">
+                                <span class="file-icon">${icon}</span>
+                                <div class="file-info">
+                                    <span class="file-name">${escapeHtml(file.filename.split('/').pop())}</span>
+                                    <span class="file-folders">
+                                        ${file.original ? `📁 ${file.original.folder}` : ''}
+                                        ${file.original && file.modified ? ' ↔ ' : ''}
+                                        ${file.modified ? `📁 ${file.modified.folder}` : ''}
+                                    </span>
                                 </div>
-                            `;
-                        }).join('')}
-                    </div>
+                                <span class="file-status">${file.isAdded ? 'Added' : file.isRemoved ? 'Removed' : file.hasChanges ? 'Modified' : 'Unchanged'}</span>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
-                <div class="file-content-area">
-                    <div class="file-header">
-                        <span class="file-title">Select a file to view differences</span>
-                    </div>
-                    <div class="file-diff-view">
-                        <div class="diff-placeholder">
-                            Click on a file in the sidebar to view its differences
-                        </div>
+            </div>
+            <div class="file-content-area">
+                <div class="file-header">
+                    <span class="file-title">Select a file to view differences</span>
+                </div>
+                <div class="file-diff-view">
+                    <div class="diff-placeholder">
+                        Click on a file in the sidebar to view its differences
                     </div>
                 </div>
             </div>
-        `;
-        
-        repoContent.innerHTML = filesHtml;
-        
-        // Store files data globally for access in showFileDiff
-        window.currentFiles = files;
-        
-        // Add event listeners for file selection
-        const fileItems = repoContent.querySelectorAll('.file-item');
-        fileItems.forEach(item => {
-            item.addEventListener('click', () => {
-                const filePath = item.dataset.path;
-                const file = files.find(f => f.filename === filePath);
-                if (file) {
-                    showFileDiff(file);
-                }
-            });
+        </div>
+    `;
+    
+    repoContent.innerHTML = filesHtml;
+    
+    // Store files data globally for access in showFileDiff
+    window.currentFiles = files;
+    
+    // Add event listeners for file selection - this uses the existing showFileDiff function
+    const fileItems = repoContent.querySelectorAll('.file-item');
+    fileItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const filePath = item.dataset.path;
+            const file = files.find(f => f.filename === filePath);
+            if (file) {
+                showFileDiff(file);
+            }
         });
-        
-    } catch (error) {
-        console.error('Error loading files:', error);
-        repoContent.innerHTML = '<div class="alert alert-warning">Error loading files. Using placeholder content.</div>';
-    }
+    });
 }
 
 async function loadActualFiles(exampleNum) {
@@ -773,9 +756,6 @@ async function loadActualFiles(exampleNum) {
             return [];
         }
         
-        console.log('All files in folder:', Array.from(folderInput.files).map(f => f.webkitRelativePath));
-        
-        // Look for files in the example folder structure
         const exampleFiles = Array.from(folderInput.files).filter(file => 
             file.webkitRelativePath.includes(`example_${exampleNum}/`)
         );
@@ -788,18 +768,18 @@ async function loadActualFiles(exampleNum) {
         }
         
         // Find all files in the original and modified directories
-        const originalDir = `Qwen32B/example_${exampleNum}/files_${exampleNum}/`;
-        const modifiedDir = `Qwen32B/example_${exampleNum}/without_oversight/`;
+        const originalDir = `example_${exampleNum}/files_${exampleNum}/`;
+        const modifiedDir = `example_${exampleNum}/without_oversight/`;
         
         console.log('Looking for original files in:', originalDir);
         console.log('Looking for modified files in:', modifiedDir);
         
         // Get all files in both directories (including subdirectories)
         const originalFiles = exampleFiles.filter(file => 
-            file.webkitRelativePath.startsWith(originalDir)
+            file.webkitRelativePath.includes(originalDir)
         );
         const modifiedFiles = exampleFiles.filter(file => 
-            file.webkitRelativePath.startsWith(modifiedDir)
+            file.webkitRelativePath.includes(modifiedDir)
         );
         
         console.log('Original files found:', originalFiles.map(f => f.webkitRelativePath));
@@ -810,13 +790,21 @@ async function loadActualFiles(exampleNum) {
         const modifiedMap = new Map();
         
         originalFiles.forEach(file => {
-            const relativePath = file.webkitRelativePath.substring(originalDir.length);
-            originalMap.set(relativePath, file);
+            // Find the position of the originalDir in the full path and extract relative path
+            const dirIndex = file.webkitRelativePath.indexOf(originalDir);
+            if (dirIndex !== -1) {
+                const relativePath = file.webkitRelativePath.substring(dirIndex + originalDir.length);
+                originalMap.set(relativePath, file);
+            }
         });
         
         modifiedFiles.forEach(file => {
-            const relativePath = file.webkitRelativePath.substring(modifiedDir.length);
-            modifiedMap.set(relativePath, file);
+            // Find the position of the modifiedDir in the full path and extract relative path
+            const dirIndex = file.webkitRelativePath.indexOf(modifiedDir);
+            if (dirIndex !== -1) {
+                const relativePath = file.webkitRelativePath.substring(dirIndex + modifiedDir.length);
+                modifiedMap.set(relativePath, file);
+            }
         });
         
         // Find files that exist in both directories
@@ -831,13 +819,13 @@ async function loadActualFiles(exampleNum) {
             
             if (originalFile && modifiedFile) {
                 try {
+                    // Read file contents once
                     const originalContent = await readFileAsText(originalFile);
                     const modifiedContent = await readFileAsText(modifiedFile);
                     
-                    // Always include the file for comparison, even if content is the same
-                    // This allows users to see that no changes were made
                     const hasChanges = originalContent !== modifiedContent;
                     console.log(`File ${relativePath}: hasChanges=${hasChanges}, originalLength=${originalContent.length}, modifiedLength=${modifiedContent.length}`);
+                    
                     files.push({
                         filename: relativePath,
                         original: {
@@ -864,11 +852,11 @@ async function loadActualFiles(exampleNum) {
                 files.push({
                     filename: relativePath,
                     original: isAdded ? null : { 
-                        content,
+                        content: content,
                         folder: 'files_' + exampleNum
                     },
                     modified: isAdded ? { 
-                        content,
+                        content: content,
                         folder: 'without_oversight'
                     } : null,
                     hasChanges: true,
@@ -894,21 +882,6 @@ function readFileAsText(file) {
         reader.onerror = e => reject(e);
         reader.readAsText(file);
     });
-}
-
-function compareFiles(original, modified) {
-    // Simple comparison function to highlight differences
-    if (!original || !modified) return { added: [], removed: [], modified: [] };
-    
-    const originalContent = original.content || '';
-    const modifiedContent = modified.content || '';
-    
-    if (originalContent === modifiedContent) {
-        return { added: [], removed: [], modified: [] };
-    }
-    
-    // For now, mark as modified if content differs
-    return { added: [], removed: [], modified: [modified] };
 }
 
 function showClearConfirmation() {
@@ -1013,11 +986,8 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Make removeHighlight globally available
 window.removeHighlight = removeHighlight;
 
-// Initialize the app when DOM is loaded
-// Show file diff in VS Code-like interface
 function showFileDiff(file) {
     const fileHeader = document.querySelector('.file-header .file-title');
     const diffView = document.querySelector('.file-diff-view');
