@@ -199,6 +199,115 @@ body {
     border: 1px solid var(--border);
 }
 
+.confidence-controls {
+    margin: 12px 0;
+    padding: 12px;
+    background: var(--border-light);
+    border-radius: 4px;
+    border: 1px solid var(--border);
+}
+
+.confidence-question {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 12px;
+    color: var(--text);
+    text-align: center;
+    padding: 8px;
+    background: var(--info-light);
+    border-radius: 4px;
+    border-left: 2px solid var(--info);
+}
+
+.confidence-buttons {
+    display: flex;
+    gap: 12px;
+    margin: 12px 0;
+    justify-content: center;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+.btn-warning {
+    background: var(--warning);
+    border-color: var(--warning);
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #b7791f;
+    border-color: #b7791f;
+}
+
+.btn-outline-success {
+    background: transparent;
+    border-color: var(--success);
+    color: var(--success);
+}
+
+.btn-outline-success:hover {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+}
+
+.btn-outline-warning {
+    background: transparent;
+    border-color: var(--warning);
+    color: var(--warning);
+}
+
+.btn-outline-warning:hover {
+    background: var(--warning);
+    border-color: var(--warning);
+    color: white;
+}
+
+.comments-section {
+    margin-top: 16px;
+}
+
+.comments-section label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: var(--text);
+    font-size: 14px;
+}
+
+.comments-section textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--panel);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+    transition: all 0.15s ease;
+}
+
+.comments-section textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.1);
+}
+
+.comments-section textarea:hover {
+    border-color: var(--accent);
+}
+
+.alert-light {
+    background: var(--border-light);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
 .scheming-question {
     font-size: 18px;
     font-weight: 500;

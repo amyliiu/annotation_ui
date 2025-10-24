@@ -101,6 +101,9 @@ function isFileCompleted(fileName) {
     // Must have a scheming decision (true or false)
     if (typeof annotation.scheming !== 'boolean') return false;
     
+    // Must have a confidence selection
+    if (!annotation.confidence) return false;
+    
     // If scheming is true, must have at least one highlight
     if (annotation.scheming === true) {
         return annotation.highlights && annotation.highlights.length > 0;
@@ -194,6 +197,20 @@ function displayContent(data) {
                 <button id="highlightBtn" class="btn btn-primary" style="display: none;">🎯 Highlight Text</button>
             </div>
             
+            <div class="confidence-controls" id="confidenceControls" style="display: none;">
+                <div class="confidence-question">
+                    How confident are you in this annotation?
+                </div>
+                <div class="confidence-buttons">
+                    <button id="confidenceHigh" class="btn btn-success btn-sm">High Confidence</button>
+                    <button id="confidenceLow" class="btn btn-warning btn-sm">Low Confidence</button>
+                </div>
+                <div class="comments-section">
+                    <label for="commentsInput">Additional Comments (optional):</label>
+                    <textarea id="commentsInput" placeholder="Add any additional notes about this annotation..." rows="3"></textarea>
+                </div>
+            </div>
+            
             <div class="content-display" id="contentDisplay">
                 ${escapeHtml(content)}
             </div>
@@ -225,6 +242,11 @@ function setupContentEventListeners() {
     $('#schemingNo').addEventListener('click', () => markScheming(false));
     $('#highlightBtn').addEventListener('click', enableHighlighting);
     
+    // Confidence controls
+    $('#confidenceHigh').addEventListener('click', () => setConfidence('high'));
+    $('#confidenceLow').addEventListener('click', () => setConfidence('low'));
+    $('#commentsInput').addEventListener('input', updateComments);
+    
     // Text selection for highlighting
     const contentDisplay = $('#contentDisplay');
     contentDisplay.addEventListener('mouseup', handleTextSelection);
@@ -241,7 +263,9 @@ function markScheming(hasScheming) {
             scheming: hasScheming,
             highlights: [],
             startTime: new Date().toISOString(),
-            totalTime: 0
+            totalTime: 0,
+            confidence: null,
+            comments: ''
         };
     } else {
         // If changing from scheming to no scheming, clear highlights
@@ -259,6 +283,20 @@ function markScheming(hasScheming) {
     displayAnnotations();
     autoSave(); // Save immediately on annotation change
     
+    // Show confidence controls after marking scheming
+    $('#confidenceControls').style.display = 'block';
+    
+    // Load existing confidence and comments if available
+    if (state.annotations[state.currentFile]) {
+        const annotation = state.annotations[state.currentFile];
+        if (annotation.confidence) {
+            updateConfidenceButtons(annotation.confidence);
+        }
+        if (annotation.comments) {
+            $('#commentsInput').value = annotation.comments;
+        }
+    }
+    
     if (hasScheming) {
         $('#highlightBtn').style.display = 'inline-block';
         showStatus('success', 'Scheming marked. You can now highlight specific text.');
@@ -266,6 +304,37 @@ function markScheming(hasScheming) {
         $('#highlightBtn').style.display = 'none';
         showStatus('success', 'No scheming marked. Highlights removed.');
     }
+}
+
+function setConfidence(confidenceLevel) {
+    if (!state.currentFile || !state.annotations[state.currentFile]) return;
+    
+    state.annotations[state.currentFile].confidence = confidenceLevel;
+    updateConfidenceButtons(confidenceLevel);
+    autoSave(); // Save immediately on confidence change
+    showStatus('success', `Confidence set to: ${confidenceLevel}`);
+}
+
+function updateConfidenceButtons(confidenceLevel) {
+    // Reset button styles
+    $('#confidenceHigh').classList.remove('btn-success', 'btn-outline-success');
+    $('#confidenceLow').classList.remove('btn-warning', 'btn-outline-warning');
+    
+    // Set active button style
+    if (confidenceLevel === 'high') {
+        $('#confidenceHigh').classList.add('btn-success');
+        $('#confidenceLow').classList.add('btn-outline-warning');
+    } else if (confidenceLevel === 'low') {
+        $('#confidenceHigh').classList.add('btn-outline-success');
+        $('#confidenceLow').classList.add('btn-warning');
+    }
+}
+
+function updateComments() {
+    if (!state.currentFile || !state.annotations[state.currentFile]) return;
+    
+    state.annotations[state.currentFile].comments = $('#commentsInput').value;
+    autoSave(); // Save immediately on comments change
 }
 
 function enableHighlighting() {
@@ -417,6 +486,23 @@ function displayAnnotations() {
     let html = `<div class="alert ${annotations.scheming ? 'alert-warning' : 'alert-success'}">
         <strong>Scheming Status:</strong> ${annotations.scheming ? '❌ YES - Scheming Detected' : '✅ NO - No Scheming'}
     </div>`;
+    
+    // Add confidence information
+    if (annotations.confidence) {
+        const confidenceIcon = annotations.confidence === 'high' ? '🟢' : '🟡';
+        const confidenceText = annotations.confidence === 'high' ? 'High Confidence' : 'Low Confidence';
+        html += `<div class="alert alert-info">
+            <strong>Confidence:</strong> ${confidenceIcon} ${confidenceText}
+        </div>`;
+    }
+    
+    // Add comments if available
+    if (annotations.comments && annotations.comments.trim()) {
+        html += `<div class="alert alert-light">
+            <strong>Comments:</strong><br>
+            ${escapeHtml(annotations.comments)}
+        </div>`;
+    }
     
     if (annotations.highlights && annotations.highlights.length > 0) {
         html += '<h4>Highlighted Text:</h4>';
