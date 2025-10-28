@@ -77,7 +77,14 @@ function displayFileList() {
     fileList.style.display = 'block';
     fileItems.innerHTML = '';
 
-    state.files.forEach((file, index) => {
+    // Sort files by trailing sample number in the filename (ascending)
+    const getSampleNumber = (name) => {
+        const match = name && name.match(/(\d+)(?:\.json)?$/);
+        return match ? parseInt(match[1], 10) : Number.POSITIVE_INFINITY;
+    };
+    const sortedFiles = [...state.files].sort((a, b) => getSampleNumber(a.name) - getSampleNumber(b.name));
+
+    sortedFiles.forEach((file, index) => {
         const item = document.createElement('div');
         item.className = 'file-item';
         
@@ -1047,11 +1054,18 @@ function exportAnnotations() {
     // Update time for current file before export
     updateFileTime();
     
+    // Only include annotations for files that were actually annotated
+    const annotatedFiles = Object.keys(state.annotations);
+    const annotatedFileNames = state.files
+        .filter(file => annotatedFiles.includes(file.name))
+        .map(file => file.name);
+    
     const exportData = {
         export_timestamp: new Date().toISOString(),
         session_id: state.sessionId,
-        total_files: state.files.length,
-        annotated_files: Object.keys(state.annotations).length,
+        total_files_loaded: state.files.length,
+        annotated_files_count: annotatedFiles.length,
+        annotated_file_names: annotatedFileNames,
         annotations: state.annotations
     };
     
@@ -1065,7 +1079,7 @@ function exportAnnotations() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    showStatus('success', 'Annotations exported successfully!');
+    showStatus('success', `Exported ${annotatedFiles.length} annotated files successfully!`);
 }
 
 function escapeHtml(text) {
