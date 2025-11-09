@@ -977,10 +977,10 @@ async function loadActualFiles(exampleNum) {
         }
         
         // Find all files in the original and modified directories
-        // const originalDir = `example_${exampleNum}/files_${exampleNum}/`;
-        // const modifiedDir = `example_${exampleNum}/without_oversight/`;
-        const modifiedDir = `example_${exampleNum}/files_${exampleNum}/`;
-        const originalDir = `example_${exampleNum}/without_oversight/`;
+        const originalDir = `example_${exampleNum}/files_${exampleNum}/`;
+        const modifiedDir = `example_${exampleNum}/without_oversight/`;
+        // const modifiedDir = `example_${exampleNum}/files_${exampleNum}/`;
+        // const originalDir = `example_${exampleNum}/without_oversight/`;
         
         console.log('Looking for original files in:', originalDir);
         console.log('Looking for modified files in:', modifiedDir);
