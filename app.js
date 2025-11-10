@@ -167,6 +167,19 @@ function readFileContent(file) {
 function displayContent(data) {
     const mainContent = $('#mainContent');
     
+    // Extract goals if they exist
+    let goalsSection = '';
+    if (data.goal) {
+        goalsSection = '🎯 GOALS:\n';
+        if (data.goal.long_term) {
+            goalsSection += `\n📈 LONG-TERM GOAL:\n${data.goal.long_term}\n`;
+        }
+        if (data.goal.short_term) {
+            goalsSection += `\n📊 SHORT-TERM GOAL:\n${data.goal.short_term}\n`;
+        }
+        goalsSection += '\n' + '═'.repeat(80) + '\n\n';
+    }
+    
     // Extract the main content to display
     let content = '';
     if (data.input && data.input.with_oversight && data.input.without_oversight) {
@@ -191,6 +204,9 @@ function displayContent(data) {
     } else {
         content = JSON.stringify(data, null, 2);
     }
+    
+    // Prepend goals to content
+    content = goalsSection + content;
 
     mainContent.innerHTML = `
         <div class="card">
