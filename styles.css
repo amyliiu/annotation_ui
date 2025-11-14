@@ -259,6 +259,73 @@ body {
     border-color: rgba(49, 130, 206, 0.6);
 }
 
+/* Category buttons - distinct colors */
+.category-buttons .btn-category1 {
+    background: rgba(229, 62, 62, 0.15);
+    border-color: rgba(229, 62, 62, 0.5);
+    color: #c53030;
+    font-weight: 500;
+    border-width: 2px;
+}
+
+.category-buttons .btn-category1:hover {
+    background: rgba(229, 62, 62, 0.25);
+    border-color: rgba(229, 62, 62, 0.7);
+    color: #a02626;
+}
+
+.category-buttons .btn-category1.active {
+    background: #e53e3e;
+    border-color: #e53e3e;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(229, 62, 62, 0.3);
+}
+
+.category-buttons .btn-category2 {
+    background: rgba(237, 137, 54, 0.15);
+    border-color: rgba(237, 137, 54, 0.5);
+    color: #c05621;
+    font-weight: 500;
+    border-width: 2px;
+}
+
+.category-buttons .btn-category2:hover {
+    background: rgba(237, 137, 54, 0.25);
+    border-color: rgba(237, 137, 54, 0.7);
+    color: #9c4221;
+}
+
+.category-buttons .btn-category2.active {
+    background: #ed8936;
+    border-color: #ed8936;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(237, 137, 54, 0.3);
+}
+
+.category-buttons .btn-category3 {
+    background: rgba(66, 153, 225, 0.15);
+    border-color: rgba(66, 153, 225, 0.5);
+    color: #2c5282;
+    font-weight: 500;
+    border-width: 2px;
+}
+
+.category-buttons .btn-category3:hover {
+    background: rgba(66, 153, 225, 0.25);
+    border-color: rgba(66, 153, 225, 0.7);
+    color: #2a4365;
+}
+
+.category-buttons .btn-category3.active {
+    background: #4299e1;
+    border-color: #4299e1;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(66, 153, 225, 0.3);
+}
+
 .malicious-action-buttons {
     display: flex;
     flex-direction: column;
