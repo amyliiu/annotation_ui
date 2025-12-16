@@ -191,7 +191,7 @@ body {
 
 .annotation-questions-container {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 16px;
     margin: 12px 0;
     padding: 12px;
@@ -257,6 +257,42 @@ body {
 .annotation-controls .btn-primary:hover {
     background: rgba(49, 130, 206, 0.25);
     border-color: rgba(49, 130, 206, 0.6);
+}
+
+.annotation-controls .btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(49, 130, 206, 0.3);
+}
+
+.annotation-controls .btn-danger.active {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: white;
+    box-shadow: 0 2px 4px rgba(229, 62, 62, 0.3);
+}
+
+.annotation-controls .btn-warning.active {
+    background: var(--warning);
+    border-color: var(--warning);
+    color: white;
+    box-shadow: 0 2px 4px rgba(214, 158, 46, 0.3);
+}
+
+.annotation-controls .btn-info.active {
+    background: var(--info);
+    border-color: var(--info);
+    color: white;
+    box-shadow: 0 2px 4px rgba(49, 130, 206, 0.3);
+}
+
+.annotation-controls .btn-success.active {
+    background: var(--success);
+    border-color: var(--success);
+    color: white;
+    box-shadow: 0 2px 4px rgba(56, 161, 105, 0.3);
 }
 
 /* Category buttons - distinct colors */
