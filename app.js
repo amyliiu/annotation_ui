@@ -110,7 +110,7 @@ function isFileCompleted(fileName) {
     
     // If there's a malicious action, must have at least one action highlight
     if (annotation.action_label === 'malicious' || annotation.action_label === 'covert_malicious') {
-        const actionHighlights = annotation.action_highlights || annotation.highlights || [];
+        const actionHighlights = annotation.action_highlights || [];
         return actionHighlights.length > 0;
     }
     
@@ -398,10 +398,8 @@ function setCoTLabel(cotLabel) {
             action_label: null,
             cot_highlights: [],
             action_highlights: [],
-            highlights: [], // Keep for backward compatibility
             startTime: new Date().toISOString(),
             totalTime: 0,
-            confidence: null,
             comments: '',
             cot_covert_type: null,
             cot_hide_confidence: null,
@@ -436,10 +434,9 @@ function setCoTLabel(cotLabel) {
         $('#cotHighlightControls').style.display = 'none';
     }
     
-    // Show confidence controls and comments if both labels are set
+    // Show comments section if both labels are set
     const annotation = state.annotations[state.currentFile];
     if (annotation.cot_label && annotation.action_label) {
-        $('#confidenceControls').style.display = 'block';
         $('#commentsSection').style.display = 'block';
     }
     
@@ -484,10 +481,8 @@ function setActionLabel(actionLabel) {
             action_label: actionLabel,
             cot_highlights: [],
             action_highlights: [],
-            highlights: [], // Keep for backward compatibility
             startTime: new Date().toISOString(),
             totalTime: 0,
-            confidence: null,
             comments: '',
             cot_covert_type: null,
             cot_hide_confidence: null,
@@ -618,30 +613,6 @@ function updateCovertActionConfidenceButtons(confidence) {
     }
 }
 
-
-function setConfidence(confidenceLevel) {
-    if (!state.currentFile || !state.annotations[state.currentFile]) return;
-    
-    state.annotations[state.currentFile].confidence = confidenceLevel;
-    updateConfidenceButtons(confidenceLevel);
-    autoSave(); // Save immediately on confidence change
-    showStatus('success', `Confidence set to: ${confidenceLevel}`);
-}
-
-function updateConfidenceButtons(confidenceLevel) {
-    // Reset button styles
-    $('#confidenceHigh').classList.remove('btn-success', 'btn-outline-success');
-    $('#confidenceLow').classList.remove('btn-warning', 'btn-outline-warning');
-    
-    // Set active button style
-    if (confidenceLevel === 'high') {
-        $('#confidenceHigh').classList.add('btn-success');
-        $('#confidenceLow').classList.add('btn-outline-warning');
-    } else if (confidenceLevel === 'low') {
-        $('#confidenceHigh').classList.add('btn-outline-success');
-        $('#confidenceLow').classList.add('btn-warning');
-    }
-}
 
 function updateComments() {
     if (!state.currentFile || !state.annotations[state.currentFile]) return;
@@ -960,13 +931,10 @@ function displayAnnotations() {
     
     // Display Action highlights
     const actionHighlights = annotations.action_highlights || [];
-    // Also check old format for backward compatibility
-    const oldHighlights = annotations.highlights || [];
-    const allActionHighlights = actionHighlights.length > 0 ? actionHighlights : oldHighlights;
     
-    if (allActionHighlights.length > 0) {
+    if (actionHighlights.length > 0) {
         html += '<h4>Highlighted Malicious Action:</h4>';
-        allActionHighlights.forEach(highlight => {
+        actionHighlights.forEach(highlight => {
             html += `
                 <div class="annotation-item">
                     <div class="annotation-text">${escapeHtml(highlight.text)}</div>
@@ -997,14 +965,8 @@ function removeHighlight(highlightId, highlightType) {
     // Remove from appropriate array
     if (highlightType === 'cot' && annotation.cot_highlights) {
         annotation.cot_highlights = annotation.cot_highlights.filter(h => h.id !== highlightId);
-    } else if (highlightType === 'action') {
-        if (annotation.action_highlights) {
-            annotation.action_highlights = annotation.action_highlights.filter(h => h.id !== highlightId);
-        }
-        // Also check old format for backward compatibility
-        if (annotation.highlights) {
-            annotation.highlights = annotation.highlights.filter(h => h.id !== highlightId);
-        }
+    } else if (highlightType === 'action' && annotation.action_highlights) {
+        annotation.action_highlights = annotation.action_highlights.filter(h => h.id !== highlightId);
     }
     
     // Remove visual highlight
@@ -1271,20 +1233,13 @@ function migrateOldAnnotations(annotations) {
         if (!annotation.cot_hide_confidence) annotation.cot_hide_confidence = null;
         if (!annotation.covert_action_confidence) annotation.covert_action_confidence = null;
         
-        // Migrate old highlights format to new format
-        if (annotation.highlights && annotation.highlights.length > 0) {
-            // If old highlights exist but no new format, migrate them to action_highlights
-            if (!annotation.action_highlights && !annotation.cot_highlights) {
-                annotation.action_highlights = annotation.highlights.map(h => ({
-                    ...h,
-                    type: 'action'
-                }));
-            }
-        }
-        
         // Initialize highlight arrays if they don't exist
         if (!annotation.cot_highlights) annotation.cot_highlights = [];
         if (!annotation.action_highlights) annotation.action_highlights = [];
+        
+        // Remove old highlights and confidence fields if they exist
+        if (annotation.highlights) delete annotation.highlights;
+        if (annotation.confidence !== undefined) delete annotation.confidence;
     });
 }
 
@@ -1645,13 +1600,22 @@ function exportAnnotations() {
         .filter(file => annotatedFiles.includes(file.name))
         .map(file => file.name);
     
+    // Clean up annotations before export - remove old highlights and confidence fields
+    const cleanedAnnotations = {};
+    Object.keys(state.annotations).forEach(fileName => {
+        const annotation = { ...state.annotations[fileName] };
+        if (annotation.highlights) delete annotation.highlights;
+        if (annotation.confidence !== undefined) delete annotation.confidence;
+        cleanedAnnotations[fileName] = annotation;
+    });
+    
     const exportData = {
         export_timestamp: new Date().toISOString(),
         session_id: state.sessionId,
         total_files_loaded: state.files.length,
-        annotated_files_count: annotatedFiles.length,
+        annotated_files_count: annotatedFileNames.length,
         annotated_file_names: annotatedFileNames,
-        annotations: state.annotations
+        annotations: cleanedAnnotations
     };
     
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -1675,20 +1639,6 @@ function escapeHtml(text) {
 
 window.removeHighlight = removeHighlight;
 
-// Helper function to get highlight type from element
-function getHighlightTypeFromElement(element) {
-    if (element.dataset.highlightType) {
-        return element.dataset.highlightType;
-    }
-    // Fallback: check if it's an action highlight (old format)
-    const annotation = state.annotations[state.currentFile];
-    if (annotation && annotation.highlights) {
-        const highlightId = parseInt(element.dataset.highlightId);
-        const highlight = annotation.highlights.find(h => h.id === highlightId);
-        if (highlight) return 'action'; // Old format was action highlights
-    }
-    return 'action'; // Default to action for backward compatibility
-}
 
 function showFileDiff(file) {
     const fileHeader = document.querySelector('.file-header .file-title');
