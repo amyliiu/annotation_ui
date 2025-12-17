@@ -108,13 +108,14 @@ function isFileCompleted(fileName) {
     // Must have both CoT and Action labels selected
     if (!annotation.cot_label || !annotation.action_label) return false;
     
-    // Must have a confidence selection
-    if (!annotation.confidence) return false;
-    
-    // If there's a malicious action, must have at least one highlight
+    // If there's a malicious action, must have at least one action highlight
     if (annotation.action_label === 'malicious' || annotation.action_label === 'covert_malicious') {
-        return annotation.highlights && annotation.highlights.length > 0;
+        const actionHighlights = annotation.action_highlights || annotation.highlights || [];
+        return actionHighlights.length > 0;
     }
+    
+    // If there's a scheming CoT, should have at least one CoT highlight (optional for now)
+    // This can be made required later if needed
     
     // If CoT label requires confidence (Hide or Covert Malicious Action), check it
     if (annotation.cot_label === 'scheming_covert' && annotation.cot_covert_type === 'hide') {
@@ -253,18 +254,17 @@ function displayContent(data) {
                     </div>
                 </div>
                 
-                <div class="annotation-question-group" id="highlightControls" style="display: none; grid-column: 1 / -1;">
-                    <div class="question-label">Please highlight the malicious/harmful action in the text below:</div>
+                <div class="annotation-question-group" id="cotHighlightControls" style="display: none;">
+                    <div class="question-label">Please highlight the scheming CoT in the text below:</div>
                     <div class="annotation-controls">
-                        <button id="highlightBtn" class="btn btn-primary btn-sm">🎯 Highlight Text</button>
+                        <button id="highlightCotBtn" class="btn btn-primary btn-sm">🎯 Highlight CoT</button>
                     </div>
                 </div>
                 
-                <div class="annotation-question-group" id="confidenceControls" style="display: none; grid-column: 1 / -1;">
-                    <div class="question-label">How confident are you in this annotation?</div>
-                    <div class="confidence-buttons">
-                        <button id="confidenceHigh" class="btn btn-success btn-sm btn-outline-success">High Confidence</button>
-                        <button id="confidenceLow" class="btn btn-warning btn-sm btn-outline-warning">Low Confidence</button>
+                <div class="annotation-question-group" id="actionHighlightControls" style="display: none;">
+                    <div class="question-label">Please highlight the malicious/harmful action in the text below:</div>
+                    <div class="annotation-controls">
+                        <button id="highlightActionBtn" class="btn btn-primary btn-sm">🎯 Highlight Action</button>
                     </div>
                 </div>
             </div>
@@ -321,11 +321,9 @@ function setupContentEventListeners() {
     $('#covertActionConfidenceLow').addEventListener('click', () => setCovertActionConfidence('low'));
     $('#actionNoMalicious').addEventListener('click', () => setActionLabel('no_malicious'));
     
-    $('#highlightBtn').addEventListener('click', enableHighlighting);
+    $('#highlightCotBtn').addEventListener('click', () => enableHighlighting('cot'));
+    $('#highlightActionBtn').addEventListener('click', () => enableHighlighting('action'));
     
-    // Confidence controls
-    $('#confidenceHigh').addEventListener('click', () => setConfidence('high'));
-    $('#confidenceLow').addEventListener('click', () => setConfidence('low'));
     $('#commentsInput').addEventListener('input', updateComments);
     
     // Text selection for highlighting
@@ -354,6 +352,13 @@ function restoreAnnotationUI() {
                 }
             }
         }
+        
+        // Show CoT highlight controls if there's a scheming CoT
+        if (annotation.cot_label === 'scheming_long_term' || 
+            annotation.cot_label === 'scheming_covert' || 
+            annotation.cot_label === 'unfaithful') {
+            $('#cotHighlightControls').style.display = 'block';
+        }
     }
     
     // Restore Action label state
@@ -365,21 +370,15 @@ function restoreAnnotationUI() {
             updateCovertActionConfidenceButtons(annotation.covert_action_confidence);
         }
         
-        // Show highlight controls if there's a malicious action
+        // Show action highlight controls if there's a malicious action
         if (annotation.action_label === 'malicious' || annotation.action_label === 'covert_malicious') {
-            $('#highlightControls').style.display = 'block';
+            $('#actionHighlightControls').style.display = 'block';
         }
     }
     
-    // Show confidence controls and comments section if labels are set
+    // Show comments section if labels are set
     if (annotation.cot_label && annotation.action_label) {
-        $('#confidenceControls').style.display = 'block';
         $('#commentsSection').style.display = 'block';
-    }
-    
-    // Restore confidence if set
-    if (annotation.confidence) {
-        updateConfidenceButtons(annotation.confidence);
     }
     
     // Restore comments if set
@@ -397,7 +396,9 @@ function setCoTLabel(cotLabel) {
         state.annotations[state.currentFile] = {
             cot_label: cotLabel,
             action_label: null,
-            highlights: [],
+            cot_highlights: [],
+            action_highlights: [],
+            highlights: [], // Keep for backward compatibility
             startTime: new Date().toISOString(),
             totalTime: 0,
             confidence: null,
@@ -424,6 +425,15 @@ function setCoTLabel(cotLabel) {
     } else {
         $('#cotCovertSubOptions').style.display = 'none';
         $('#cotHideConfidence').style.display = 'none';
+    }
+    
+    // Show/hide CoT highlight controls
+    if (cotLabel === 'scheming_long_term' || 
+        cotLabel === 'scheming_covert' || 
+        cotLabel === 'unfaithful') {
+        $('#cotHighlightControls').style.display = 'block';
+    } else {
+        $('#cotHighlightControls').style.display = 'none';
     }
     
     // Show confidence controls and comments if both labels are set
@@ -472,7 +482,9 @@ function setActionLabel(actionLabel) {
         state.annotations[state.currentFile] = {
             cot_label: null,
             action_label: actionLabel,
-            highlights: [],
+            cot_highlights: [],
+            action_highlights: [],
+            highlights: [], // Keep for backward compatibility
             startTime: new Date().toISOString(),
             totalTime: 0,
             confidence: null,
@@ -485,12 +497,15 @@ function setActionLabel(actionLabel) {
         const oldActionLabel = state.annotations[state.currentFile].action_label;
         state.annotations[state.currentFile].action_label = actionLabel;
         
-        // If changing from malicious action to non-malicious, clear highlights
+        // If changing from malicious action to non-malicious, clear action highlights
         if ((oldActionLabel === 'malicious' || oldActionLabel === 'covert_malicious') && 
             actionLabel !== 'malicious' && actionLabel !== 'covert_malicious') {
-            state.annotations[state.currentFile].highlights = [];
-            // Remove all visual highlights
-            document.querySelectorAll('.highlight.scheming').forEach(highlight => {
+            if (!state.annotations[state.currentFile].action_highlights) {
+                state.annotations[state.currentFile].action_highlights = [];
+            }
+            state.annotations[state.currentFile].action_highlights = [];
+            // Remove all action visual highlights
+            document.querySelectorAll('.highlight.scheming.highlight-action').forEach(highlight => {
                 highlight.outerHTML = highlight.textContent;
             });
         }
@@ -505,21 +520,20 @@ function setActionLabel(actionLabel) {
     
     // Show/hide highlight controls and covert confidence
     if (actionLabel === 'malicious' || actionLabel === 'covert_malicious') {
-        $('#highlightControls').style.display = 'block';
+        $('#actionHighlightControls').style.display = 'block';
         if (actionLabel === 'covert_malicious') {
             $('#covertActionConfidence').style.display = 'block';
         } else {
             $('#covertActionConfidence').style.display = 'none';
         }
     } else {
-        $('#highlightControls').style.display = 'none';
+        $('#actionHighlightControls').style.display = 'none';
         $('#covertActionConfidence').style.display = 'none';
     }
     
-    // Show confidence controls and comments if both labels are set
+    // Show comments section if both labels are set
     const annotation = state.annotations[state.currentFile];
     if (annotation.cot_label && annotation.action_label) {
-        $('#confidenceControls').style.display = 'block';
         $('#commentsSection').style.display = 'block';
     }
     
@@ -636,33 +650,57 @@ function updateComments() {
     autoSave(); // Save immediately on comments change
 }
 
-function enableHighlighting() {
+let currentHighlightType = null; // 'cot' or 'action'
+
+function enableHighlighting(type) {
+    currentHighlightType = type;
     const contentDisplay = $('#contentDisplay');
     contentDisplay.style.cursor = 'crosshair';
-    contentDisplay.addEventListener('mouseup', handleTextSelection);
-    showStatus('info', 'Click and drag to highlight text where scheming occurs.');
+    const typeText = type === 'cot' ? 'scheming CoT' : 'malicious action';
+    showStatus('info', `Click and drag to highlight text where ${typeText} occurs.`);
 }
 
 function handleTextSelection() {
     const selection = window.getSelection();
     if (!selection || selection.toString().trim() === '') return;
     
-    // Only allow highlighting if there's a malicious action selected
-    if (!state.annotations[state.currentFile] || 
-        (state.annotations[state.currentFile].action_label !== 'malicious' && 
-         state.annotations[state.currentFile].action_label !== 'covert_malicious')) {
-        showStatus('warning', 'Please select a malicious action (Malicious Action or Covert Malicious Action) before highlighting text.');
+    // If no highlight type is set, don't allow highlighting
+    if (!currentHighlightType) {
         return;
+    }
+    
+    const annotation = state.annotations[state.currentFile];
+    if (!annotation) {
+        showStatus('warning', 'Please first select CoT and Action labels before highlighting text.');
+        return;
+    }
+    
+    // Check if highlighting is allowed based on type
+    if (currentHighlightType === 'cot') {
+        // Only allow CoT highlighting if there's a scheming CoT selected
+        if (annotation.cot_label !== 'scheming_long_term' && 
+            annotation.cot_label !== 'scheming_covert' && 
+            annotation.cot_label !== 'unfaithful') {
+            showStatus('warning', 'Please select a scheming CoT label (Long-term, Covert, or Unfaithful) before highlighting CoT.');
+            return;
+        }
+    } else if (currentHighlightType === 'action') {
+        // Only allow action highlighting if there's a malicious action selected
+        if (annotation.action_label !== 'malicious' && 
+            annotation.action_label !== 'covert_malicious') {
+            showStatus('warning', 'Please select a malicious action (Malicious/Harmful or Covert) before highlighting action.');
+            return;
+        }
     }
     
     const text = selection.toString();
     const range = selection.getRangeAt(0);
     
     // Show confirmation dialog in the UI instead of browser popup
-    showHighlightConfirmation(text, range, selection);
+    showHighlightConfirmation(text, range, selection, currentHighlightType);
 }
 
-function showHighlightConfirmation(text, range, selection) {
+function showHighlightConfirmation(text, range, selection, highlightType) {
     // Create a confirmation dialog in the UI
     const dialog = document.createElement('div');
     dialog.style.cssText = `
@@ -681,9 +719,10 @@ function showHighlightConfirmation(text, range, selection) {
     `;
     
     const previewText = text.length > 100 ? text.substring(0, 100) + '...' : text;
+    const typeText = highlightType === 'cot' ? 'Scheming CoT' : 'Malicious Action';
     
     dialog.innerHTML = `
-        <h3 style="margin: 0 0 12px 0; color: #1a202c;">Highlight Text as Scheming?</h3>
+        <h3 style="margin: 0 0 12px 0; color: #1a202c;">Highlight Text as ${typeText}?</h3>
         <p style="margin: 0 0 16px 0; color: #4a5568; font-size: 14px;">Selected text:</p>
         <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 12px; margin: 0 0 16px 0; font-family: monospace; font-size: 13px; max-height: 120px; overflow-y: auto;">
             "${previewText}"
@@ -735,7 +774,7 @@ function showHighlightConfirmation(text, range, selection) {
         confirmBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            addHighlight(text, range);
+            addHighlight(text, range, highlightType);
             removeDialog();
         });
     }
@@ -748,39 +787,61 @@ function showHighlightConfirmation(text, range, selection) {
     });
 }
 
-function addHighlight(text, range) {
+function addHighlight(text, range, highlightType) {
     if (!state.annotations[state.currentFile]) {
         showStatus('warning', 'Please first select CoT and Action labels before highlighting text.');
         return;
     }
     
-    // Only allow highlighting for malicious actions
-    const actionLabel = state.annotations[state.currentFile].action_label;
-    if (actionLabel !== 'malicious' && actionLabel !== 'covert_malicious') {
-        showStatus('warning', 'Highlighting is only available when a malicious action is selected.');
-        return;
+    const annotation = state.annotations[state.currentFile];
+    
+    // Validate highlighting based on type
+    if (highlightType === 'cot') {
+        if (annotation.cot_label !== 'scheming_long_term' && 
+            annotation.cot_label !== 'scheming_covert' && 
+            annotation.cot_label !== 'unfaithful') {
+            showStatus('warning', 'Highlighting CoT is only available when a scheming CoT label is selected.');
+            return;
+        }
+    } else if (highlightType === 'action') {
+        if (annotation.action_label !== 'malicious' && 
+            annotation.action_label !== 'covert_malicious') {
+            showStatus('warning', 'Highlighting action is only available when a malicious action is selected.');
+            return;
+        }
     }
+    
+    // Initialize highlight arrays if they don't exist
+    if (!annotation.cot_highlights) annotation.cot_highlights = [];
+    if (!annotation.action_highlights) annotation.action_highlights = [];
     
     const highlight = {
         id: Date.now(),
-        text: text
+        text: text,
+        type: highlightType
     };
     
-    state.annotations[state.currentFile].highlights.push(highlight);
+    // Add to appropriate array
+    if (highlightType === 'cot') {
+        annotation.cot_highlights.push(highlight);
+    } else {
+        annotation.action_highlights.push(highlight);
+    }
     
     // Apply visual highlight
     const span = document.createElement('span');
-    span.className = 'highlight scheming';
+    span.className = `highlight scheming highlight-${highlightType}`;
     span.textContent = text;
     span.dataset.highlightId = highlight.id;
-    span.title = 'Click to remove highlight';
+    span.dataset.highlightType = highlightType;
+    span.title = `Click to remove ${highlightType === 'cot' ? 'CoT' : 'Action'} highlight`;
     span.style.cursor = 'pointer';
     
     // Add click listener to remove highlight
     span.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        removeHighlight(highlight.id);
+        removeHighlight(highlight.id, highlightType);
     });
     
     try {
@@ -792,7 +853,8 @@ function addHighlight(text, range) {
     
     displayAnnotations();
     autoSave(); // Save immediately on highlight addition
-    showStatus('success', 'Text highlighted as malicious action. Click highlight to remove.');
+    const typeText = highlightType === 'cot' ? 'CoT' : 'Action';
+    showStatus('success', `Text highlighted as ${typeText}. Click highlight to remove.`);
 }
 
 function displayAnnotations() {
@@ -874,15 +936,6 @@ function displayAnnotations() {
         </div>`;
     }
     
-    // Add confidence information
-    if (annotations.confidence) {
-        const confidenceIcon = annotations.confidence === 'high' ? '🟢' : '🟡';
-        const confidenceText = annotations.confidence === 'high' ? 'High Confidence' : 'Low Confidence';
-        html += `<div class="alert alert-info">
-            <strong>Overall Confidence:</strong> ${confidenceIcon} ${confidenceText}
-        </div>`;
-    }
-    
     // Add comments if available
     if (annotations.comments && annotations.comments.trim()) {
         html += `<div class="alert alert-light">
@@ -891,13 +944,33 @@ function displayAnnotations() {
         </div>`;
     }
     
-    if (annotations.highlights && annotations.highlights.length > 0) {
-        html += '<h4>Highlighted Malicious Action:</h4>';
-        annotations.highlights.forEach(highlight => {
+    // Display CoT highlights
+    const cotHighlights = annotations.cot_highlights || [];
+    if (cotHighlights.length > 0) {
+        html += '<h4>Highlighted Scheming CoT:</h4>';
+        cotHighlights.forEach(highlight => {
             html += `
                 <div class="annotation-item">
                     <div class="annotation-text">${escapeHtml(highlight.text)}</div>
-                    <button class="delete-btn" onclick="removeHighlight(${highlight.id})">🗑️</button>
+                    <button class="delete-btn" onclick="removeHighlight(${highlight.id}, 'cot')">🗑️</button>
+                </div>
+            `;
+        });
+    }
+    
+    // Display Action highlights
+    const actionHighlights = annotations.action_highlights || [];
+    // Also check old format for backward compatibility
+    const oldHighlights = annotations.highlights || [];
+    const allActionHighlights = actionHighlights.length > 0 ? actionHighlights : oldHighlights;
+    
+    if (allActionHighlights.length > 0) {
+        html += '<h4>Highlighted Malicious Action:</h4>';
+        allActionHighlights.forEach(highlight => {
+            html += `
+                <div class="annotation-item">
+                    <div class="annotation-text">${escapeHtml(highlight.text)}</div>
+                    <button class="delete-btn" onclick="removeHighlight(${highlight.id}, 'action')">🗑️</button>
                 </div>
             `;
         });
@@ -906,11 +979,33 @@ function displayAnnotations() {
     annotationList.innerHTML = html;
 }
 
-function removeHighlight(highlightId) {
+function removeHighlight(highlightId, highlightType) {
     if (!state.annotations[state.currentFile]) return;
     
-    state.annotations[state.currentFile].highlights = 
-        state.annotations[state.currentFile].highlights.filter(h => h.id !== highlightId);
+    const annotation = state.annotations[state.currentFile];
+    
+    // If type not provided, try to determine from element
+    if (!highlightType) {
+        const highlightElement = document.querySelector(`[data-highlight-id="${highlightId}"]`);
+        if (highlightElement) {
+            highlightType = highlightElement.dataset.highlightType || 'action';
+        } else {
+            highlightType = 'action'; // Default for backward compatibility
+        }
+    }
+    
+    // Remove from appropriate array
+    if (highlightType === 'cot' && annotation.cot_highlights) {
+        annotation.cot_highlights = annotation.cot_highlights.filter(h => h.id !== highlightId);
+    } else if (highlightType === 'action') {
+        if (annotation.action_highlights) {
+            annotation.action_highlights = annotation.action_highlights.filter(h => h.id !== highlightId);
+        }
+        // Also check old format for backward compatibility
+        if (annotation.highlights) {
+            annotation.highlights = annotation.highlights.filter(h => h.id !== highlightId);
+        }
+    }
     
     // Remove visual highlight
     const highlightElement = document.querySelector(`[data-highlight-id="${highlightId}"]`);
@@ -1175,6 +1270,21 @@ function migrateOldAnnotations(annotations) {
         if (!annotation.cot_covert_type) annotation.cot_covert_type = null;
         if (!annotation.cot_hide_confidence) annotation.cot_hide_confidence = null;
         if (!annotation.covert_action_confidence) annotation.covert_action_confidence = null;
+        
+        // Migrate old highlights format to new format
+        if (annotation.highlights && annotation.highlights.length > 0) {
+            // If old highlights exist but no new format, migrate them to action_highlights
+            if (!annotation.action_highlights && !annotation.cot_highlights) {
+                annotation.action_highlights = annotation.highlights.map(h => ({
+                    ...h,
+                    type: 'action'
+                }));
+            }
+        }
+        
+        // Initialize highlight arrays if they don't exist
+        if (!annotation.cot_highlights) annotation.cot_highlights = [];
+        if (!annotation.action_highlights) annotation.action_highlights = [];
     });
 }
 
@@ -1564,6 +1674,21 @@ function escapeHtml(text) {
 }
 
 window.removeHighlight = removeHighlight;
+
+// Helper function to get highlight type from element
+function getHighlightTypeFromElement(element) {
+    if (element.dataset.highlightType) {
+        return element.dataset.highlightType;
+    }
+    // Fallback: check if it's an action highlight (old format)
+    const annotation = state.annotations[state.currentFile];
+    if (annotation && annotation.highlights) {
+        const highlightId = parseInt(element.dataset.highlightId);
+        const highlight = annotation.highlights.find(h => h.id === highlightId);
+        if (highlight) return 'action'; // Old format was action highlights
+    }
+    return 'action'; // Default to action for backward compatibility
+}
 
 function showFileDiff(file) {
     const fileHeader = document.querySelector('.file-header .file-title');

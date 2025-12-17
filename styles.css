@@ -651,6 +651,28 @@ body {
     color: white;
 }
 
+.highlight.scheming.highlight-cot {
+    background-color: rgba(229, 62, 62, 0.2);
+    border-color: #e53e3e;
+    color: #c53030;
+    border-left: 3px solid #e53e3e;
+}
+
+.highlight.scheming.highlight-cot:hover {
+    background-color: rgba(229, 62, 62, 0.3);
+}
+
+.highlight.scheming.highlight-action {
+    background-color: rgba(237, 137, 54, 0.2);
+    border-color: #ed8936;
+    color: #c05621;
+    border-left: 3px solid #ed8936;
+}
+
+.highlight.scheming.highlight-action:hover {
+    background-color: rgba(237, 137, 54, 0.3);
+}
+
 .annotation-panel {
     margin-top: 24px;
     padding: 20px;
