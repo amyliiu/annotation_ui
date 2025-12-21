@@ -5,6 +5,7 @@ const state = {
     currentData: null,
     annotations: {},
     files: [],
+    allExamplesData: null, // Store the large JSON file containing multiple examples
     sessionId: null,
     timeTracker: {
         startTime: null,
@@ -42,6 +43,9 @@ function setupEventListeners() {
     // Folder input
     $('#folderInput').addEventListener('change', handleFolderSelection);
     
+    // Step3 JSON file input
+    $('#step3JsonInput').addEventListener('change', handleStep3JsonSelection);
+    
     // Save and load buttons
     $('#saveBtn').addEventListener('click', saveProgress);
     $('#loadBtn').addEventListener('click', loadProgress);
@@ -54,20 +58,112 @@ function setupEventListeners() {
     setInterval(autoSave, 30000); // Auto-save every 30 seconds
 }
 
-function handleFolderSelection(event) {
+async function handleStep3JsonSelection(event) {
+    const file = event.target.files[0];
+    if (!file) {
+        return;
+    }
+    
+    if (!file.name.endsWith('.json')) {
+        showStatus('warning', 'Please select a JSON file.');
+        return;
+    }
+    
+    try {
+        const content = await readFileContent(file);
+        state.allExamplesData = JSON.parse(content);
+        
+        // Create virtual file entries for each example
+        state.files = [];
+        for (const key in state.allExamplesData) {
+            if (key.startsWith('example_') && Array.isArray(state.allExamplesData[key])) {
+                const exampleData = state.allExamplesData[key][0];
+                if (exampleData && exampleData !== null) {
+                    state.files.push({
+                        name: `${key}.json`,
+                        type: 'virtual',
+                        exampleKey: key,
+                        originalSourceFile: file.name
+                    });
+                }
+            }
+        }
+        
+        displayFileList();
+        showStatus('success', `Loaded ${state.files.length} examples from ${file.name}.`);
+    } catch (error) {
+        showStatus('warning', `Error loading step3 JSON file: ${error.message}`);
+    }
+}
+
+async function handleFolderSelection(event) {
     const files = Array.from(event.target.files);
+    
+    // Check if user selected a large JSON file containing multiple examples
+    const largeJsonFile = files.find(file => 
+        file.name.includes('step3') && file.name.endsWith('.json') && file.size > 10000
+    );
+    
+    if (largeJsonFile) {
+        // Load the large JSON file
+        try {
+            const content = await readFileContent(largeJsonFile);
+            state.allExamplesData = JSON.parse(content);
+            
+            // Create virtual file entries for each example
+            state.files = [];
+            for (const key in state.allExamplesData) {
+                if (key.startsWith('example_') && Array.isArray(state.allExamplesData[key])) {
+                    const exampleData = state.allExamplesData[key][0];
+                    if (exampleData && exampleData !== null) {
+                        state.files.push({
+                            name: `${key}.json`,
+                            type: 'virtual',
+                            exampleKey: key,
+                            originalSourceFile: largeJsonFile.name
+                        });
+                    }
+                }
+            }
+            
+            displayFileList();
+            showStatus('success', `Loaded ${state.files.length} examples from ${largeJsonFile.name}.`);
+            return;
+        } catch (error) {
+            showStatus('warning', `Error loading large JSON file: ${error.message}`);
+            return;
+        }
+    }
+    
+    // Otherwise, handle individual example files or wooversight files
     const wooversightFiles = files.filter(file => 
         file.name.includes('wooversight') && file.name.endsWith('.json')
     );
-
-    if (wooversightFiles.length === 0) {
-        showStatus('warning', 'No wooversight files found in the selected folders.');
-        return;
+    
+    const exampleFiles = files.filter(file => 
+        (file.name.match(/^(example_|data_)\d+\.json$/i) || file.name.match(/example_\d+\.json$/i)) && 
+        !file.name.includes('wooversight')
+    );
+    
+    if (wooversightFiles.length > 0) {
+        state.files = wooversightFiles.map(file => ({
+            name: file.name,
+            type: 'actual',
+            originalFile: file
+        }));
+        displayFileList();
+        showStatus('success', `Found ${wooversightFiles.length} wooversight files.`);
+    } else if (exampleFiles.length > 0) {
+        state.files = exampleFiles.map(file => ({
+            name: file.name,
+            type: 'actual',
+            originalFile: file
+        }));
+        displayFileList();
+        showStatus('success', `Found ${exampleFiles.length} example files.`);
+    } else {
+        showStatus('warning', 'No recognized files found. Please select a step3 JSON file or individual example files.');
     }
-
-    state.files = wooversightFiles;
-    displayFileList();
-    showStatus('success', `Found ${wooversightFiles.length} wooversight files.`);
 }
 
 function displayFileList() {
@@ -79,24 +175,33 @@ function displayFileList() {
 
     // Sort files by trailing sample number in the filename (ascending)
     const getSampleNumber = (name) => {
-        const match = name && name.match(/(\d+)(?:\.json)?$/);
+        if (!name) return Number.POSITIVE_INFINITY;
+        // Handle example_X.json format
+        const exampleMatch = name.match(/example_(\d+)/i);
+        if (exampleMatch) return parseInt(exampleMatch[1], 10);
+        // Handle data_X.json format
+        const dataMatch = name.match(/data_(\d+)/i);
+        if (dataMatch) return parseInt(dataMatch[1], 10);
+        // Fallback to trailing number
+        const match = name.match(/(\d+)(?:\.json)?$/);
         return match ? parseInt(match[1], 10) : Number.POSITIVE_INFINITY;
     };
     const sortedFiles = [...state.files].sort((a, b) => getSampleNumber(a.name) - getSampleNumber(b.name));
 
-    sortedFiles.forEach((file, index) => {
+    sortedFiles.forEach((fileEntry, index) => {
         const item = document.createElement('div');
         item.className = 'file-item';
         
         // Check if file is properly completed
-        const isCompleted = isFileCompleted(file.name);
+        const fileName = typeof fileEntry === 'string' ? fileEntry : fileEntry.name;
+        const isCompleted = isFileCompleted(fileName);
         
         item.innerHTML = `
-            <span>${file.name}</span>
+            <span>${fileName}</span>
             <span class="status-indicator ${isCompleted ? 'status-completed' : 'status-pending'}"></span>
         `;
         
-        item.addEventListener('click', () => loadFile(file));
+        item.addEventListener('click', () => loadFile(fileEntry));
         fileItems.appendChild(item);
     });
 }
@@ -108,11 +213,12 @@ function isFileCompleted(fileName) {
     // Must have both CoT and Action labels selected
     if (!annotation.cot_label || !annotation.action_label) return false;
     
-    // If there's a malicious action, must have at least one action highlight
-    if (annotation.action_label === 'malicious' || annotation.action_label === 'covert_malicious') {
-        const actionHighlights = annotation.action_highlights || [];
-        return actionHighlights.length > 0;
-    }
+    // If there's a malicious action, should have at least one action highlight
+    // Commented out to allow LLM-pre-filled annotations as valid starting points
+    // if (annotation.action_label === 'malicious' || annotation.action_label === 'covert_malicious') {
+    //     const actionHighlights = annotation.action_highlights || [];
+    //     return actionHighlights.length > 0;
+    // }
     
     // If there's a scheming CoT, should have at least one CoT highlight (optional for now)
     // This can be made required later if needed
@@ -128,17 +234,43 @@ function isFileCompleted(fileName) {
     return true;
 }
 
-async function loadFile(file) {
+async function loadFile(fileEntry) {
     try {
         // Stop timing previous file if exists
         if (state.currentFile && state.timeTracker.currentFileStartTime) {
             updateFileTime();
         }
         
-        const content = await readFileContent(file);
-        const data = JSON.parse(content);
+        let data;
+        let fileName;
         
-        state.currentFile = file.name;
+        // Handle virtual file entries (from large JSON)
+        if (fileEntry.type === 'virtual' && fileEntry.exampleKey) {
+            const exampleArray = state.allExamplesData[fileEntry.exampleKey];
+            if (!exampleArray || exampleArray.length === 0 || exampleArray[0] === null) {
+                showStatus('warning', `Example ${fileEntry.exampleKey} has no data.`);
+                return;
+            }
+            data = exampleArray[0]; // Get the first (and only) object in the array
+            fileName = fileEntry.name;
+        } 
+        // Handle actual file entries
+        else if (fileEntry.type === 'actual' && fileEntry.originalFile) {
+            const content = await readFileContent(fileEntry.originalFile);
+            data = JSON.parse(content);
+            fileName = fileEntry.name;
+        }
+        // Backward compatibility: handle direct File objects
+        else if (fileEntry instanceof File) {
+            const content = await readFileContent(fileEntry);
+            data = JSON.parse(content);
+            fileName = fileEntry.name;
+        } else {
+            showStatus('warning', 'Invalid file entry format.');
+            return;
+        }
+        
+        state.currentFile = fileName;
         state.currentData = data;
         
         // Start timing this file
@@ -149,16 +281,20 @@ async function loadFile(file) {
         // Find the file item that corresponds to this file
         const fileItems = $$('.file-item');
         for (let item of fileItems) {
-            if (item.textContent.includes(file.name)) {
+            if (item.textContent.includes(fileName)) {
                 item.classList.add('active');
                 break;
             }
         }
         
+        // Apply LLM judge output to annotations before displaying
+        applyJudgeOutputToAnnotations(data, fileName);
+        
         displayContent(data);
         updateStatus();
     } catch (error) {
-        showStatus('warning', `Error loading ${file.name}: ${error.message}`);
+        const fileName = fileEntry.name || (fileEntry instanceof File ? fileEntry.name : 'unknown');
+        showStatus('warning', `Error loading ${fileName}: ${error.message}`);
     }
 }
 
@@ -169,6 +305,144 @@ function readFileContent(file) {
         reader.onerror = e => reject(new Error('Failed to read file'));
         reader.readAsText(file);
     });
+}
+
+function applyJudgeOutputToAnnotations(data, fileName) {
+    if (!data.judge_output) {
+        return; // No judge output to apply
+    }
+    
+    // Initialize annotation if it doesn't exist
+    if (!state.annotations[fileName]) {
+        state.annotations[fileName] = {
+            cot_label: null,
+            action_label: null,
+            cot_highlights: [],
+            action_highlights: [],
+            startTime: new Date().toISOString(),
+            totalTime: 0,
+            comments: '',
+            cot_covert_type: null,
+            cot_hide_confidence: null,
+            covert_action_confidence: null
+        };
+    }
+    
+    const annotation = state.annotations[fileName];
+    
+    // Only apply judge output to missing labels (preserve user edits)
+    // This allows LLM results to serve as a starting point without overwriting user work
+    let judgeOutputText = data.judge_output;
+    
+    // Try to parse judge_output if it's a stringified JSON
+    let judgeOutputObj = null;
+    try {
+        // First, try to extract JSON from the text if it contains a JSON block
+        const jsonMatch = judgeOutputText.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonMatch) {
+            judgeOutputObj = JSON.parse(jsonMatch[1]);
+        } else {
+            // Try parsing the entire string as JSON
+            judgeOutputObj = JSON.parse(judgeOutputText);
+        }
+    } catch (e) {
+        // If parsing fails, treat it as plain text and parse manually
+        judgeOutputObj = null;
+    }
+    
+    // Parse Condition 1 (Misaligned Goal / Intent)
+    let condition1Answer = null;
+    let condition1Justification = '';
+    
+    // Try to extract from structured text
+    const condition1Match = judgeOutputText.match(/1\.\s*Analysis of Condition 1[^:]*:\s*\n\*\*Your Answer \(Yes\/No\):\*\*\s*(Yes|No)/i);
+    if (condition1Match) {
+        condition1Answer = condition1Match[1].toLowerCase() === 'yes' ? 'Yes' : 'No';
+    }
+    
+    // Extract Condition 1 justification
+    const condition1JustMatch = judgeOutputText.match(/1\.\s*Analysis of Condition 1[^:]*:\s*\n\*\*Your Answer \(Yes\/No\):\*\*\s*(Yes|No)\s*\n\*\*Justification:\*\*\s*([^\n]+(?:\n(?!\*\*)[^\n]+)*)/i);
+    if (condition1JustMatch) {
+        condition1Justification = condition1JustMatch[2].trim();
+    }
+    
+    // Parse Condition 2 (Deliberate Hiding / Covert Action)
+    let condition2Answer = null;
+    let condition2Justification = '';
+    
+    const condition2Match = judgeOutputText.match(/2\.\s*Analysis of Condition 2[^:]*:\s*\n\*\*Your Answer \(Yes\/No\):\*\*\s*(Yes|No)/i);
+    if (condition2Match) {
+        condition2Answer = condition2Match[1].toLowerCase() === 'yes' ? 'Yes' : 'No';
+    }
+    
+    // Extract Condition 2 justification
+    const condition2JustMatch = judgeOutputText.match(/2\.\s*Analysis of Condition 2[^:]*:\s*\n\*\*Your Answer \(Yes\/No\):\*\*\s*(Yes|No)\s*\n\*\*Justification:\*\*\s*([^\n]+(?:\n(?!\*\*)[^\n]+)*)/i);
+    if (condition2JustMatch) {
+        condition2Justification = condition2JustMatch[2].trim();
+    }
+    
+    // Extract Overall Summary
+    let overallSummary = '';
+    const summaryMatch = judgeOutputText.match(/\*\*Overall Summary:\*\*\s*([^\n]+(?:\n(?!```)[^\n]+)*)/i);
+    if (summaryMatch) {
+        overallSummary = summaryMatch[1].trim();
+    }
+    
+    // Get final label from JSON if available
+    let finalLabel = null;
+    if (judgeOutputObj && judgeOutputObj.label) {
+        finalLabel = judgeOutputObj.label;
+    } else {
+        // Try to extract from text
+        const labelMatch = judgeOutputText.match(/"label"\s*:\s*"(yes|no)"/i);
+        if (labelMatch) {
+            finalLabel = labelMatch[1].toLowerCase();
+        }
+    }
+    
+    // Map Condition 1 to cot_label (only if not already set)
+    if (!annotation.cot_label && condition1Answer) {
+        if (condition1Answer === 'Yes') {
+            annotation.cot_label = 'scheming_long_term'; // Default to long-term, user can adjust
+        } else if (condition1Answer === 'No') {
+            annotation.cot_label = 'no_scheming';
+        }
+    }
+    
+    // Map Condition 2 to action_label (only if not already set)
+    if (!annotation.action_label && condition2Answer) {
+        if (condition2Answer === 'Yes') {
+            // Based on examples, "Yes" for Condition 2 typically means covert malicious action
+            annotation.action_label = 'covert_malicious';
+        } else if (condition2Answer === 'No') {
+            annotation.action_label = 'no_malicious';
+        }
+    }
+    
+    // Combine justifications and summary into comments (append if comments already exist)
+    const commentsParts = [];
+    if (condition1Justification) {
+        commentsParts.push(`Condition 1 (Misaligned Goal/Intent) - ${condition1Answer}: ${condition1Justification}`);
+    }
+    if (condition2Justification) {
+        commentsParts.push(`Condition 2 (Deliberate Hiding/Covert Action) - ${condition2Answer}: ${condition2Justification}`);
+    }
+    if (overallSummary) {
+        commentsParts.push(`Overall Summary: ${overallSummary}`);
+    }
+    if (finalLabel) {
+        commentsParts.push(`Final Label: ${finalLabel}`);
+    }
+    
+    if (commentsParts.length > 0) {
+        const newComments = commentsParts.join('\n\n');
+        // Prepend LLM comments if user already has comments, otherwise replace
+        if (annotation.comments && annotation.comments.trim()) {
+            annotation.comments = `[LLM Judge Output]\n${newComments}\n\n[User Comments]\n${annotation.comments}`;
+        } else {
+            annotation.comments = newComments;
+        }
+    }
 }
 
 function displayContent(data) {
@@ -191,6 +465,20 @@ function displayContent(data) {
     let content = '';
     if (data.input && data.input.with_oversight && data.input.without_oversight) {
         content = `WITH OVERSIGHT:\n${JSON.stringify(data.input.with_oversight, null, 2)}\n\nWITHOUT OVERSIGHT:\n${JSON.stringify(data.input.without_oversight, null, 2)}`;
+    } else if (data.input && data.input['o4-mini'] && Array.isArray(data.input['o4-mini'])) {
+        // Handle o4-mini conversation format
+        let conversationText = '';
+        data.input['o4-mini'].forEach((turn, index) => {
+            if (turn.source === 'user') {
+                conversationText += `\n👤 USER:\n${turn.content}\n`;
+            } else if (turn.source === 'assistant') {
+                conversationText += `\n🤖 ASSISTANT:\n${turn.content}\n`;
+            } else {
+                conversationText += `\n📝 ${turn.source.toUpperCase()}:\n${turn.content}\n`;
+            }
+            conversationText += '\n' + '─'.repeat(50) + '\n';
+        });
+        content = `CONVERSATION:${conversationText}`;
     } else if (data.input && data.input.Qwen && data.input.Qwen.length > 0) {
         // Handle single conversation format - format it nicely
         let conversationText = '';
@@ -1254,11 +1542,16 @@ function showFileRepository() {
         return;
     }
     
+    // Only show file repository for individual example files (not for virtual files from large JSON)
+    if (!state.currentFile || !state.currentFile.match(/^(example_|data_)\d+\.json$/i)) {
+        fileRepo.style.display = 'none';
+        return;
+    }
+    
     console.log('Showing file repository');
-    // Always show file repository
     fileRepo.style.display = 'block';
     
-    const currNum = state.currentFile.split('_')[2].replace('.json', '');
+    const currNum = state.currentFile.split('_')[1].replace('.json', '');
     // Load file comparison directly
     // console.log('Loading actual files for example:', currNum);
     loadActualFiles(currNum).then(file_differences => {
