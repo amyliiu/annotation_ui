@@ -17,6 +17,37 @@ const state = {
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
+// s2 output JSON: omit metadata fields from the main pane; keep `output` (model trace, etc.)
+const DISPLAY_EXCLUDED_KEYS = ['tools_used', 'scheming_solutions', 'not_scheming_solution'];
+
+function dataForDisplay(data) {
+    if (data == null) return data;
+    if (Array.isArray(data)) {
+        return data.map(dataForDisplay);
+    }
+    if (typeof data !== 'object') {
+        return data;
+    }
+    const out = {};
+    for (const key of Object.keys(data)) {
+        if (DISPLAY_EXCLUDED_KEYS.includes(key)) continue;
+        out[key] = dataForDisplay(data[key]);
+    }
+    return out;
+}
+
+/** Basename like example_1.json, data_1.json, or s2_output_1.json → example index string */
+function getExampleIndexFromAnnotFileName(fileName) {
+    if (!fileName) return null;
+    let m = fileName.match(/^s2_output_(\d+)\.json$/i);
+    if (m) return m[1];
+    m = fileName.match(/^example_(\d+)\.json$/i);
+    if (m) return m[1];
+    m = fileName.match(/^data_(\d+)\.json$/i);
+    if (m) return m[1];
+    return null;
+}
+
 // Initialize the app
 function init() {
     // Add closest polyfill for older browsers
@@ -140,6 +171,10 @@ async function handleFolderSelection(event) {
         file.name.includes('wooversight') && file.name.endsWith('.json')
     );
     
+    const s2OutputFiles = files.filter(file =>
+        /^s2_output_\d+\.json$/i.test(file.name) && !file.name.includes('wooversight')
+    );
+    
     const exampleFiles = files.filter(file => 
         (file.name.match(/^(example_|data_)\d+\.json$/i) || file.name.match(/example_\d+\.json$/i)) && 
         !file.name.includes('wooversight')
@@ -153,6 +188,14 @@ async function handleFolderSelection(event) {
         }));
         displayFileList();
         showStatus('success', `Found ${wooversightFiles.length} wooversight files.`);
+    } else if (s2OutputFiles.length > 0) {
+        state.files = s2OutputFiles.map(file => ({
+            name: file.name,
+            type: 'actual',
+            originalFile: file
+        }));
+        displayFileList();
+        showStatus('success', `Found ${s2OutputFiles.length} s2_output_*.json file(s).`);
     } else if (exampleFiles.length > 0) {
         state.files = exampleFiles.map(file => ({
             name: file.name,
@@ -162,7 +205,7 @@ async function handleFolderSelection(event) {
         displayFileList();
         showStatus('success', `Found ${exampleFiles.length} example files.`);
     } else {
-        showStatus('warning', 'No recognized files found. Please select a step3 JSON file or individual example files.');
+        showStatus('warning', 'No recognized files found. Select a folder with s2_output_{i}.json, step3 JSON, or example_*.json files.');
     }
 }
 
@@ -176,6 +219,8 @@ function displayFileList() {
     // Sort files by trailing sample number in the filename (ascending)
     const getSampleNumber = (name) => {
         if (!name) return Number.POSITIVE_INFINITY;
+        const s2Match = name.match(/s2_output_(\d+)/i);
+        if (s2Match) return parseInt(s2Match[1], 10);
         // Handle example_X.json format
         const exampleMatch = name.match(/example_(\d+)/i);
         if (exampleMatch) return parseInt(exampleMatch[1], 10);
@@ -448,60 +493,12 @@ function applyJudgeOutputToAnnotations(data, fileName) {
 function displayContent(data) {
     const mainContent = $('#mainContent');
     
-    // Extract goals if they exist
-    let goalsSection = '';
-    if (data.goal) {
-        goalsSection = '🎯 GOALS:\n';
-        if (data.goal.long_term) {
-            goalsSection += `\n📈 LONG-TERM GOAL:\n${data.goal.long_term}\n`;
-        }
-        if (data.goal.short_term) {
-            goalsSection += `\n📊 SHORT-TERM GOAL:\n${data.goal.short_term}\n`;
-        }
-        goalsSection += '\n' + '═'.repeat(80) + '\n\n';
+    let content;
+    try {
+        content = JSON.stringify(dataForDisplay(data), null, 2);
+    } catch (e) {
+        content = `[Could not stringify JSON: ${e.message}]`;
     }
-    
-    // Extract the main content to display
-    let content = '';
-    if (data.input && data.input.with_oversight && data.input.without_oversight) {
-        content = `WITH OVERSIGHT:\n${JSON.stringify(data.input.with_oversight, null, 2)}\n\nWITHOUT OVERSIGHT:\n${JSON.stringify(data.input.without_oversight, null, 2)}`;
-    } else if (data.input && data.input['o4-mini'] && Array.isArray(data.input['o4-mini'])) {
-        // Handle o4-mini conversation format
-        let conversationText = '';
-        data.input['o4-mini'].forEach((turn, index) => {
-            if (turn.source === 'user') {
-                conversationText += `\n👤 USER:\n${turn.content}\n`;
-            } else if (turn.source === 'assistant') {
-                conversationText += `\n🤖 ASSISTANT:\n${turn.content}\n`;
-            } else {
-                conversationText += `\n📝 ${turn.source.toUpperCase()}:\n${turn.content}\n`;
-            }
-            conversationText += '\n' + '─'.repeat(50) + '\n';
-        });
-        content = `CONVERSATION:${conversationText}`;
-    } else if (data.input && data.input.Qwen && data.input.Qwen.length > 0) {
-        // Handle single conversation format - format it nicely
-        let conversationText = '';
-        data.input.Qwen.forEach((turn, index) => {
-            if (turn.source === 'user') {
-                conversationText += `\n👤 USER:\n${turn.content}\n`;
-            } else if (turn.source === 'assistant') {
-                conversationText += `\n🤖 ASSISTANT:\n${turn.content}\n`;
-            } else {
-                conversationText += `\n📝 ${turn.source.toUpperCase()}:\n${turn.content}\n`;
-            }
-            conversationText += '\n' + '─'.repeat(50) + '\n';
-        });
-        content = `CONVERSATION:${conversationText}`;
-    } else if (data.input) {
-        // Handle other input formats
-        content = `INPUT:\n${JSON.stringify(data.input, null, 2)}`;
-    } else {
-        content = JSON.stringify(data, null, 2);
-    }
-    
-    // Prepend goals to content
-    content = goalsSection + content;
 
     mainContent.innerHTML = `
         <div class="card">
@@ -1542,8 +1539,9 @@ function showFileRepository() {
         return;
     }
     
-    // Only show file repository for individual example files (not for virtual files from large JSON)
-    if (!state.currentFile || !state.currentFile.match(/^(example_|data_)\d+\.json$/i)) {
+    const currNum = getExampleIndexFromAnnotFileName(state.currentFile);
+    // Only show file repository when we can map to example_{i} folders (not virtual step3)
+    if (!state.currentFile || !currNum) {
         fileRepo.style.display = 'none';
         return;
     }
@@ -1551,7 +1549,6 @@ function showFileRepository() {
     console.log('Showing file repository');
     fileRepo.style.display = 'block';
     
-    const currNum = state.currentFile.split('_')[1].replace('.json', '');
     // Load file comparison directly
     // console.log('Loading actual files for example:', currNum);
     loadActualFiles(currNum).then(file_differences => {

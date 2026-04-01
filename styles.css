@@ -618,7 +618,7 @@ body {
     border-radius: 4px;
     padding: 12px;
     margin: 12px 0;
-    max-height: 400px;
+    max-height: min(80vh, 1200px);
     overflow-y: auto;
     white-space: pre-wrap;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;

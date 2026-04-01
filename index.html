@@ -12,7 +12,7 @@
             <h3>Scheming Annotation UI</h3>
             
             <div class="input-group">
-                <label for="folderInput">Select root folder containing example_{i}:</label>
+                <label for="folderInput">Select root folder (expects s2_output_{i}.json under example_{i}/):</label>
                 <input type="file" id="folderInput" webkitdirectory directory multiple>
             </div>
 
@@ -38,7 +38,7 @@
                 <h3>Status</h3>
                 <div id="statusContent">
                     <div class="alert alert-info">
-                        Please select a folder containing example_{i} folders with s2_{i}.json files.
+                        Select a folder that includes s2_output_{i}.json files (e.g. under example_{i}/) for file-diff support, or upload a step3 JSON.
                     </div>
                 </div>
             </div>
